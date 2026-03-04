@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from .database import engine
 from .models import Base
+from .router import user, auth
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
@@ -18,5 +19,6 @@ app = FastAPI(lifespan=lifespan)
 async def test():
     return {'status':'healthy'}
 
-
+app.include_router(user.router)
+app.include_router(auth.router)
 
