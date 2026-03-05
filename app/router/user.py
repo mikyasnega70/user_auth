@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends
 from starlette import status
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from typing import Annotated
 from ..database import Asyncsessionlocal
 from ..models import Users
 from .auth import get_current_user
+from ..limiter import limiter
 from datetime import datetime
 
 router = APIRouter(
@@ -36,7 +37,8 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 @router.post('/register', status_code=status.HTTP_201_CREATED)
-async def register_user(db:db_dependency, newuser:UserCreate):
+@limiter.limit('30/minute')
+async def register_user(db:db_dependency, request:Request, newuser:UserCreate):
     db_user = await db.execute(select(Users).where(Users.email == newuser.email))
     db_user = db_user.scalar_one_or_none()
     if db_user:
@@ -52,7 +54,8 @@ async def register_user(db:db_dependency, newuser:UserCreate):
     return {'msg':'user created'}
 
 @router.get('/me', status_code=status.HTTP_200_OK, response_model=UserResponse)
-async def get_user(db:db_dependency, user:user_dependency):
+@limiter.limit('30/minute')
+async def get_user(db:db_dependency, request:Request, user:user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
     

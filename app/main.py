@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from .limiter import limiter
 from .database import engine
 from .models import Base
 from .router import user, auth
@@ -14,6 +18,10 @@ async def lifespan(app:FastAPI):
     await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 @app.get('/')
 async def test():
